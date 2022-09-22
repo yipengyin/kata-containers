@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 
 use serde::Deserialize;
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct Empty {}
 
 impl Empty {
@@ -24,26 +24,26 @@ impl Default for FSGroupChangePolicy {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FSGroupChangePolicy {
     Always = 0,
     OnRootMismatch = 1,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct FSGroup {
     pub group_id: u32,
     pub group_change_policy: FSGroupChangePolicy,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct StringUser {
     pub uid: String,
     pub gid: String,
     pub additional_gids: Vec<String>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct Device {
     pub id: String,
     pub field_type: String,
@@ -52,7 +52,7 @@ pub struct Device {
     pub options: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Storage {
     pub driver: String,
     pub driver_options: Vec<String>,
@@ -75,14 +75,14 @@ impl ::std::default::Default for IPFamily {
     }
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct IPAddress {
     pub family: IPFamily,
     pub address: String,
     pub mask: String,
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct Interface {
     pub device: String,
     pub name: String,
@@ -97,12 +97,12 @@ pub struct Interface {
     pub raw_flags: u32,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct Interfaces {
     pub interfaces: Vec<Interface>,
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct Route {
     pub dest: String,
     pub gateway: String,
@@ -112,7 +112,7 @@ pub struct Route {
     pub family: IPFamily,
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct Routes {
     pub routes: Vec<Route>,
 }
@@ -129,7 +129,7 @@ pub struct CreateContainerRequest {
     pub rootfs_mounts: Vec<oci::Mount>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ContainerID {
     pub container_id: String,
 }
@@ -142,7 +142,7 @@ impl ContainerID {
     }
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ContainerProcessID {
     pub container_id: ContainerID,
     pub exec_id: String,
@@ -165,7 +165,7 @@ impl ContainerProcessID {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Default)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
 pub struct RemoveContainerRequest {
     pub container_id: String,
     pub timeout: u32,
@@ -180,18 +180,18 @@ impl RemoveContainerRequest {
     }
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct SignalProcessRequest {
     pub process_id: ContainerProcessID,
     pub signal: u32,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct WaitProcessRequest {
     pub process_id: ContainerProcessID,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ListProcessesRequest {
     pub container_id: String,
     pub format: String,
@@ -226,13 +226,13 @@ pub struct SetIPTablesResponse {
     pub data: Vec<u8>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct WriteStreamRequest {
     pub process_id: ContainerProcessID,
     pub data: Vec<u8>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct WriteStreamResponse {
     pub length: u32,
 }
@@ -244,7 +244,7 @@ pub struct ExecProcessRequest {
     pub process: Option<oci::Process>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct CpuUsage {
     pub total_usage: u64,
     pub percpu_usage: ::std::vec::Vec<u64>,
@@ -252,27 +252,27 @@ pub struct CpuUsage {
     pub usage_in_usermode: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct ThrottlingData {
     pub periods: u64,
     pub throttled_periods: u64,
     pub throttled_time: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct LoadData {
     pub one: String,
     pub five: String,
     pub fifteen: String,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct CpuStats {
     pub cpu_usage: Option<CpuUsage>,
     pub throttling_data: Option<ThrottlingData>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct MemoryData {
     pub usage: u64,
     pub max_usage: u64,
@@ -280,7 +280,7 @@ pub struct MemoryData {
     pub limit: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct MemoryStats {
     pub cache: u64,
     pub usage: Option<MemoryData>,
@@ -290,13 +290,13 @@ pub struct MemoryStats {
     pub stats: ::std::collections::HashMap<String, u64>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct PidsStats {
     pub current: u64,
     pub limit: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct BlkioStatsEntry {
     pub major: u64,
     pub minor: u64,
@@ -304,7 +304,7 @@ pub struct BlkioStatsEntry {
     pub value: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct BlkioStats {
     pub io_service_bytes_recursive: Vec<BlkioStatsEntry>,
     pub io_serviced_recursive: Vec<BlkioStatsEntry>,
@@ -316,14 +316,14 @@ pub struct BlkioStats {
     pub sectors_recursive: Vec<BlkioStatsEntry>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct HugetlbStats {
     pub usage: u64,
     pub max_usage: u64,
     pub failcnt: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct CgroupStats {
     pub cpu_stats: Option<CpuStats>,
     pub memory_stats: Option<MemoryStats>,
@@ -332,7 +332,7 @@ pub struct CgroupStats {
     pub hugetlb_stats: ::std::collections::HashMap<String, HugetlbStats>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct NetworkStats {
     pub name: String,
     pub rx_bytes: u64,
@@ -345,51 +345,51 @@ pub struct NetworkStats {
     pub tx_dropped: u64,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct StatsContainerResponse {
     pub cgroup_stats: Option<CgroupStats>,
     pub network_stats: Vec<NetworkStats>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct WaitProcessResponse {
     pub status: i32,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ReadStreamRequest {
     pub process_id: ContainerProcessID,
     pub len: u32,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ReadStreamResponse {
     pub data: Vec<u8>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct CloseStdinRequest {
     pub process_id: ContainerProcessID,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct TtyWinResizeRequest {
     pub process_id: ContainerProcessID,
     pub row: u32,
     pub column: u32,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct UpdateInterfaceRequest {
     pub interface: Option<Interface>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct UpdateRoutesRequest {
     pub route: Option<Routes>,
 }
 
-#[derive(Deserialize, PartialEq, Clone, Default, Debug)]
+#[derive(Deserialize, PartialEq, Eq, Clone, Default, Debug)]
 pub struct ARPNeighbor {
     pub to_ip_address: Option<IPAddress>,
     pub device: String,
@@ -398,17 +398,17 @@ pub struct ARPNeighbor {
     pub flags: i32,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct ARPNeighbors {
     pub neighbors: Vec<ARPNeighbor>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct AddArpNeighborRequest {
     pub neighbors: Option<ARPNeighbors>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct KernelModule {
     pub name: String,
     pub parameters: Vec<String>,
@@ -464,7 +464,7 @@ impl TryFrom<String> for KernelModule {
     }
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct CreateSandboxRequest {
     pub hostname: String,
     pub dns: Vec<String>,
@@ -475,36 +475,36 @@ pub struct CreateSandboxRequest {
     pub kernel_modules: Vec<KernelModule>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct OnlineCPUMemRequest {
     pub wait: bool,
     pub nb_cpus: u32,
     pub cpu_only: bool,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ReseedRandomDevRequest {
     pub data: ::std::vec::Vec<u8>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct GetGuestDetailsRequest {
     pub mem_block_size: bool,
     pub mem_hotplug_probe: bool,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct MemHotplugByProbeRequest {
     pub mem_hotplug_probe_addr: ::std::vec::Vec<u64>,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct SetGuestDateTimeRequest {
     pub sec: i64,
     pub usec: i64,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct AgentDetails {
     pub version: String,
     pub init_daemon: bool,
@@ -513,14 +513,14 @@ pub struct AgentDetails {
     pub supports_seccomp: bool,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct GuestDetailsResponse {
     pub mem_block_size_bytes: u64,
     pub agent_details: Option<AgentDetails>,
     pub support_mem_hotplug_probe: bool,
 }
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct CopyFileRequest {
     pub path: String,
     pub file_size: i64,
@@ -532,7 +532,7 @@ pub struct CopyFileRequest {
     pub data: ::std::vec::Vec<u8>,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct CheckRequest {
     pub service: String,
 }
@@ -545,18 +545,18 @@ impl CheckRequest {
     }
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct HealthCheckResponse {
     pub status: u32,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct VersionCheckResponse {
     pub grpc_version: String,
     pub agent_version: String,
 }
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct OomEventResponse {
     pub container_id: String,
 }

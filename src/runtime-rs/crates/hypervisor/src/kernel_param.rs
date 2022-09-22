@@ -6,7 +6,7 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::{VM_ROOTFS_DRIVER_BLK, VM_ROOTFS_DRIVER_PMEM};
+use crate::{VM_ROOTFS_DRIVER_BLK, VM_ROOTFS_DRIVER_MMIO, VM_ROOTFS_DRIVER_PMEM};
 use kata_types::config::LOG_VPORT_OPTION;
 
 // Port where the agent will send the logs. Logs are sent through the vsock in cases
@@ -16,7 +16,7 @@ const VSOCK_LOGS_PORT: &str = "1025";
 const KERNEL_KV_DELIMITER: &str = "=";
 const KERNEL_PARAM_DELIMITER: &str = " ";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Param {
     pub key: String,
     pub value: String,
@@ -69,7 +69,7 @@ impl KernelParams {
 
     pub(crate) fn new_rootfs_kernel_params(rootfs_driver: &str) -> Self {
         let params = match rootfs_driver {
-            VM_ROOTFS_DRIVER_BLK => {
+            VM_ROOTFS_DRIVER_BLK | VM_ROOTFS_DRIVER_MMIO => {
                 vec![
                     Param {
                         key: "root".to_string(),

@@ -72,12 +72,10 @@ impl RootFsResource {
                 inner.rootfs.push(r.clone());
                 Ok(r)
             }
-            _ => {
-                return Err(anyhow!(
-                    "unsupported rootfs mounts count {}",
-                    rootfs_mounts.len()
-                ))
-            }
+            _ => Err(anyhow!(
+                "unsupported rootfs mounts count {}",
+                rootfs_mounts.len()
+            )),
         }
     }
 
