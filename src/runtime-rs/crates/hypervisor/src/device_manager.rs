@@ -15,6 +15,8 @@ pub const VIRTIO_MMIO: &str = "virtio-mmio";
 pub const VIRTIO_BLOCK: &str = "virtio-blk";
 pub const VFIO: &str = "vfio";
 const SYS_DEV_PREFIX: &str = "/sys/dev";
+pub const KATA_MMIO_BLK_DEV_TYPE: &str = "mmioblk";
+pub const KATA_BLK_DEV_TYPE: &str = "blk";
 type ArcBoxDevice = Arc<Mutex<Box<dyn Device>>>;
 
 pub struct DeviceManager {
@@ -34,7 +36,7 @@ impl DeviceManager {
         Ok(Self {
             block_driver: String::from(driver),
             devices: HashMap::new(),
-            block_index: 0,
+            block_index: 1,
             released_index: vec![],
         })
     }
@@ -50,11 +52,28 @@ impl DeviceManager {
         if skip {
             return Ok(id);
         }
-        if self.attach_device(&id, h).await.is_err() {
+        self.devices.insert(id.clone(), dev.clone());
+        // prepare arguments to attach device
+        let index = self.get_and_set_sandbox_block_index()?;
+        let drive_name = utils::get_virt_drive_name(index as i32)?;
+        info!(sl!(), "index: {}, drive_name: {}", index, drive_name);
+        if let Err(e) = self
+            .attach_device(
+                &id,
+                h,
+                DeviceArgument {
+                    index: Some(index),
+                    drive_name: Some(drive_name),
+                },
+            )
+            .await
+        {
             dev.lock().await.decrease_attach_count().await?;
+            self.unset_sandbox_block_index(index)?;
+            self.devices.remove(&id);
+            return Err(e);
         }
-        // insert device if no error happens
-        self.devices.insert(id.clone(), dev);
+
         Ok(id)
     }
 
@@ -62,26 +81,23 @@ impl DeviceManager {
         self.block_driver.as_str()
     }
 
-    async fn attach_device(&mut self, id: &str, h: &dyn Hypervisor) -> Result<()> {
-        // prepare arguments to attach device
-        let index = self.get_and_set_sandbox_block_index()?;
-        let drive_name = utils::get_virt_drive_name(index as i32)?;
-        if let Some(dev) = self.devices.get(id) {
-            if dev
-                .lock()
-                .await
-                .attach(
-                    h,
-                    DeviceArgument {
-                        index: Some(index),
-                        drive_name: Some(drive_name),
-                    },
-                )
-                .await
-                .is_err()
-            {
-                self.unset_sandbox_block_index(index)?;
+    pub async fn get_device_guest_path(&self, id: &str) -> Option<String> {
+        if let Some(device) = self.devices.get(id) {
+            if let Ok(dev_info) = device.lock().await.get_device_info().await {
+                return dev_info.virt_path;
             }
+        }
+        None
+    }
+
+    async fn attach_device(
+        &mut self,
+        id: &str,
+        h: &dyn Hypervisor,
+        da: DeviceArgument,
+    ) -> Result<()> {
+        if let Some(dev) = self.devices.get(id) {
+            dev.lock().await.attach(h, da).await?;
         } else {
             return Err(anyhow!(
                 "device with specified ID hasn't been created. {}",
@@ -91,10 +107,11 @@ impl DeviceManager {
         Ok(())
     }
 
-    async fn try_create_device(&self, dev_info: &mut GenericConfig) -> Result<ArcBoxDevice> {
+    async fn try_create_device(&mut self, dev_info: &mut GenericConfig) -> Result<ArcBoxDevice> {
         if dev_info.major != 0 || dev_info.minor != 0 {
             let path = get_host_path(dev_info)?;
             dev_info.host_path = path;
+            info!(sl!(), "device info: {}", dev_info.host_path);
         }
 
         if let Some(dev) = self
@@ -113,11 +130,16 @@ impl DeviceManager {
         let id = self.new_device_id()?;
         dev_info.id = id;
 
-        if is_block(dev_info) {
-            Ok(Arc::new(Mutex::new(Box::new(BlockDevice::new(dev_info)))))
+        let dev: ArcBoxDevice = if is_block(dev_info) {
+            dev_info
+                .driver_options
+                .insert("block-driver".to_string(), self.block_driver.clone());
+            Arc::new(Mutex::new(Box::new(BlockDevice::new(dev_info))))
         } else {
-            Ok(Arc::new(Mutex::new(Box::new(GenericDevice::new(dev_info)))))
-        }
+            Arc::new(Mutex::new(Box::new(GenericDevice::new(dev_info))))
+        };
+
+        Ok(dev)
     }
 
     async fn find_device(
@@ -169,10 +191,10 @@ impl DeviceManager {
 
     fn new_device_id(&self) -> Result<String> {
         for _ in 0..5 {
-            let rand_bytes = rand::RandomBytes::new(8).bytes;
-            let id = str::from_utf8(&rand_bytes)?;
-            if self.devices.get(id).is_none() {
-                return Ok(id.to_string());
+            let rand_bytes = rand::RandomBytes::new(8);
+            let id = format!("{:x}", rand_bytes);
+            if self.devices.get(&id).is_none() {
+                return Ok(id);
             }
         }
         Err(anyhow!("ID are exhausted"))
