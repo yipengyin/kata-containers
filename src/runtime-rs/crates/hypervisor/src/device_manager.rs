@@ -4,7 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-use crate::{utils, BlockDevice, Device, DeviceArgument, GenericConfig, GenericDevice, Hypervisor};
+use crate::{
+    utils, BlockDevice, Device, DeviceArgument, GenericConfig, GenericDevice, Hypervisor, IoLimits,
+};
+use agent::types::Device as AgentDevice;
 use anyhow::{anyhow, Result};
 use ini::Ini;
 use kata_sys_util::rand;
@@ -75,6 +78,35 @@ impl DeviceManager {
         }
 
         Ok(id)
+    }
+
+    pub async fn generate_agent_device(&self, device_id: String) -> Result<AgentDevice> {
+        // Safe because we just attached the device
+        let dev = self.get_device_by_id(&device_id).await.unwrap();
+        let base_info = dev.lock().await.get_device_info().await?;
+        let mut device = AgentDevice {
+            container_path: base_info.container_path.clone(),
+            ..Default::default()
+        };
+
+        match self.get_block_driver().await {
+            VIRTIO_MMIO => {
+                if let Some(path) = base_info.virt_path {
+                    device.id = device_id;
+                    device.field_type = KATA_MMIO_BLK_DEV_TYPE.to_string();
+                    device.vm_path = path.clone();
+                }
+            }
+            VIRTIO_BLOCK => {
+                if let Some(path) = base_info.pci_addr {
+                    device.id = device_id;
+                    device.field_type = KATA_BLK_DEV_TYPE.to_string();
+                    device.vm_path = path.clone();
+                }
+            }
+            _ => (),
+        }
+        Ok(device)
     }
 
     pub async fn get_block_driver(&self) -> &str {
@@ -189,6 +221,10 @@ impl DeviceManager {
         None
     }
 
+    async fn get_device_by_id(&self, id: &str) -> Option<ArcBoxDevice> {
+        self.devices.get(id).map(Arc::clone)
+    }
+
     fn new_device_id(&self) -> Result<String> {
         for _ in 0..5 {
             let rand_bytes = rand::RandomBytes::new(8);
@@ -226,16 +262,61 @@ impl DeviceManager {
     }
 }
 
+pub fn new_device_info(
+    device: &oci::LinuxDevice,
+    bdf: Option<String>,
+    io_limits: Option<IoLimits>,
+) -> Result<GenericConfig> {
+    // b      block (buffered) special file
+    // c, u   character (unbuffered) special file
+    // p      FIFO
+    // refer to https://man7.org/linux/man-pages/man1/mknod.1.html
+
+    let allow_device_type: Vec<&str> = vec!["c", "b", "u", "p"];
+
+    info!(sl!(), "linux device info: device path:{:?} ,device type:{:?}, major:{:?}, minor:{:?}, file mode:{:?}, uid:{:?},gid:{:?}", 
+    device.path, device.r#type, device.major, device.minor, device.file_mode, device.uid,device.gid);
+
+    if !allow_device_type.contains(&device.r#type.as_str()) {
+        return Err(anyhow!("runtime not support device type {}", device.r#type));
+    }
+
+    if device.path.is_empty() {
+        return Err(anyhow!("container path can not be empty"));
+    }
+
+    let file_mode = device.file_mode.unwrap_or(0);
+    let uid = device.uid.unwrap_or(0);
+    let gid = device.gid.unwrap_or(0);
+
+    let dev_info = GenericConfig {
+        host_path: String::new(),
+        container_path: device.path.clone(),
+        dev_type: device.r#type.clone(),
+        major: device.major,
+        minor: device.minor,
+        file_mode: file_mode as u32,
+        uid,
+        gid,
+        id: "".to_string(),
+        bdf,
+        driver_options: HashMap::new(),
+        io_limits,
+        ..Default::default()
+    };
+    Ok(dev_info)
+}
+
 fn is_block(dev_info: &GenericConfig) -> bool {
     dev_info.dev_type == "b"
 }
 
-// GetHostPath is used to fetch the host path for the device.
+// get_host_path is used to fetch the host path for the device.
 // The path passed in the spec refers to the path that should appear inside the container.
 // We need to find the actual device path on the host based on the major-minor numbers of the device.
 fn get_host_path(dev_info: &GenericConfig) -> Result<String> {
     if dev_info.container_path.is_empty() {
-        return Err(anyhow!("Empyt path provided for device"));
+        return Err(anyhow!("Empty path provided for device"));
     }
 
     let path_comp = match dev_info.dev_type.as_str() {

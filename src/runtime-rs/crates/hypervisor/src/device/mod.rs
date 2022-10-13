@@ -19,7 +19,7 @@ pub use share_fs_mount::{ShareFsMountConfig, ShareFsMountType, ShareFsOperation}
 mod vsock;
 use anyhow::Result;
 mod generic;
-pub use generic::{GenericConfig, GenericDevice};
+pub use generic::{GenericConfig, GenericDevice, IoLimits};
 pub use vsock::{HybridVsockConfig, VsockConfig};
 
 use std::fmt;
