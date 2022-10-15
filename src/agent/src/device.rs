@@ -401,6 +401,48 @@ async fn get_vfio_device_name(sandbox: &Arc<Mutex<Sandbox>>, grp: IommuGroup) ->
     Ok(format!("{}/{}", SYSTEM_DEV_PATH, &uev.devname))
 }
 
+#[derive(Debug)]
+struct MmioBlockMatcher {
+    suffix: String,
+}
+
+impl MmioBlockMatcher {
+    fn new(devname: &str) -> MmioBlockMatcher {
+        MmioBlockMatcher {
+            suffix: format!(r"/block/{}", devname),
+        }
+    }
+}
+
+impl UeventMatcher for MmioBlockMatcher {
+    fn is_match(&self, uev: &Uevent) -> bool {
+        uev.subsystem == "block" && uev.devpath.ends_with(&self.suffix) && !uev.devname.is_empty()
+    }
+}
+
+#[instrument]
+pub async fn get_virtio_mmio_device_name(
+    sandbox: &Arc<Mutex<Sandbox>>,
+    devpath: &str,
+) -> Result<()> {
+    let devname = devpath
+        .strip_prefix("/dev/")
+        .ok_or_else(|| anyhow!("Storage source '{}' must start with /dev/", devpath))?;
+
+    let matcher = MmioBlockMatcher::new(devname);
+    let uev = wait_for_uevent(sandbox, matcher)
+        .await
+        .context("failed to wait for uevent")?;
+    if uev.devname != devname {
+        return Err(anyhow!(
+            "Unexpected device name {} for mmio device (expected {})",
+            uev.devname,
+            devname
+        ));
+    }
+    Ok(())
+}
+
 /// Scan SCSI bus for the given SCSI address(SCSI-Id and LUN)
 #[instrument]
 fn scan_scsi_bus(scsi_addr: &str) -> Result<()> {
@@ -636,11 +678,11 @@ pub fn update_env_pci(
 #[instrument]
 async fn virtiommio_blk_device_handler(
     device: &Device,
-    _sandbox: &Arc<Mutex<Sandbox>>,
+    sandbox: &Arc<Mutex<Sandbox>>,
 ) -> Result<SpecUpdate> {
-    if device.vm_path.is_empty() {
-        return Err(anyhow!("Invalid path for virtio mmio blk device"));
-    }
+    get_virtio_mmio_device_name(sandbox, &device.vm_path.to_string())
+        .await
+        .context("failed to get mmio device name")?;
 
     Ok(DevNumUpdate::from_vm_path(&device.vm_path)?.into())
 }
@@ -1479,6 +1521,33 @@ mod tests {
         let mut uev_b = uev_a.clone();
         uev_b.devpath = format!("/devices/virtual/vfio/{}", grpb);
         let matcher_b = VfioMatcher::new(grpb);
+
+        assert!(matcher_a.is_match(&uev_a));
+        assert!(matcher_b.is_match(&uev_b));
+        assert!(!matcher_b.is_match(&uev_a));
+        assert!(!matcher_a.is_match(&uev_b));
+    }
+
+    #[tokio::test]
+    async fn test_mmio_block_matcher() {
+        let devname_a = "vda";
+        let devname_b = "vdb";
+        let mut uev_a = crate::uevent::Uevent::default();
+        uev_a.action = crate::linux_abi::U_EVENT_ACTION_ADD.to_string();
+        uev_a.subsystem = "block".to_string();
+        uev_a.devname = devname_a.to_string();
+        uev_a.devpath = format!(
+            "/sys/devices/virtio-mmio-cmdline/virtio-mmio.0/virtio0/block/{}",
+            devname_a
+        );
+        let matcher_a = MmioBlockMatcher::new(devname_a);
+
+        let mut uev_b = uev_a.clone();
+        uev_b.devpath = format!(
+            "/sys/devices/virtio-mmio-cmdline/virtio-mmio.4/virtio4/block/{}",
+            devname_b
+        );
+        let matcher_b = MmioBlockMatcher::new(devname_b);
 
         assert!(matcher_a.is_match(&uev_a));
         assert!(matcher_b.is_match(&uev_b));
