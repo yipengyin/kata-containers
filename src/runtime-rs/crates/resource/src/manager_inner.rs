@@ -238,7 +238,7 @@ impl ResourceManagerInner {
                 .await?;
             devices_agent.push(device);
         }
-        return Ok(());
+        Ok(())
     }
 
     pub async fn update_cgroups(
@@ -255,6 +255,13 @@ impl ResourceManagerInner {
         self.cgroups_resource.delete().await
     }
 
+    pub async fn remove_devices(&mut self, device_id: String) -> Result<()> {
+        self.device_manager
+            .write()
+            .await
+            .try_remove_device(&device_id, self.hypervisor.as_ref())
+            .await
+    }
     pub async fn dump(&self) {
         self.rootfs_resource.dump().await;
         self.volume_resource.dump().await;

@@ -49,7 +49,6 @@ impl VolumeResource {
         sid: &str,
     ) -> Result<Vec<Arc<dyn Volume>>> {
         let mut volumes: Vec<Arc<dyn Volume>> = vec![];
-        info!(sl!(), " oci mount is : {:?}", oci_mounts.clone());
         for m in oci_mounts {
             let mut read_only = false;
             for o in &m.options {
@@ -120,5 +119,5 @@ fn is_block_volume(m: &oci::Mount) -> bool {
         info!(sl!(), "device stat: {:?}", fstat);
         return SFlag::from_bits_truncate(fstat.st_mode) == SFlag::S_IFBLK;
     }
-    return false;
+    false
 }

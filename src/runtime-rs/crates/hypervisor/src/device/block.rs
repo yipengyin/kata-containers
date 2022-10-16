@@ -7,7 +7,7 @@
 use super::generic::{GenericConfig, GenericDevice};
 use crate::{device::hypervisor, DeviceConfig};
 use crate::{Device, DeviceArgument};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 
 #[derive(Debug, Default, Clone)]
@@ -53,7 +53,11 @@ impl Device for BlockDevice {
         if let Some(index) = da.index {
             self.drive.index = index;
         }
-        let device_info = &mut self.base.get_device_info().await?;
+        let device_info = &mut self
+            .base
+            .get_device_info()
+            .await
+            .context("failed to get device info")?;
         let options = &device_info.driver_options;
         if let Some(driver) = options.get("block-driver") {
             if driver != "nvdimm" {
@@ -62,7 +66,9 @@ impl Device for BlockDevice {
                 }
             }
         }
-        self.set_device_info(device_info.clone()).await?;
+        self.set_device_info(device_info.clone())
+            .await
+            .context("failed to set device info")?;
         h.add_device(DeviceConfig::Block(self.drive.clone())).await
     }
 
@@ -74,9 +80,11 @@ impl Device for BlockDevice {
     async fn device_id(&self) -> &str {
         self.base.device_id().await
     }
+
     async fn set_device_info(&mut self, device_info: GenericConfig) -> Result<()> {
         self.base.set_device_info(device_info).await
     }
+
     async fn get_device_info(&self) -> Result<GenericConfig> {
         self.base.get_device_info().await
     }

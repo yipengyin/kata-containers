@@ -80,6 +80,26 @@ impl DeviceManager {
         Ok(id)
     }
 
+    pub async fn try_remove_device(&mut self, device_id: &str, h: &dyn Hypervisor) -> Result<()> {
+        if let Some(dev) = self.devices.get(device_id) {
+            let skip = dev.lock().await.decrease_attach_count().await?;
+            if skip {
+                return Ok(());
+            }
+            if let Err(e) = dev.lock().await.detach(h).await {
+                dev.lock().await.increase_attach_count().await?;
+                return Err(e);
+            }
+            self.devices.remove(device_id);
+        } else {
+            return Err(anyhow!(
+                "device with specified ID hasn't been created. {}",
+                device_id
+            ));
+        }
+        Ok(())
+    }
+
     pub async fn generate_agent_device(&self, device_id: String) -> Result<AgentDevice> {
         // Safe because we just attached the device
         let dev = self.get_device_by_id(&device_id).await.unwrap();
@@ -94,14 +114,14 @@ impl DeviceManager {
                 if let Some(path) = base_info.virt_path {
                     device.id = device_id;
                     device.field_type = KATA_MMIO_BLK_DEV_TYPE.to_string();
-                    device.vm_path = path.clone();
+                    device.vm_path = path;
                 }
             }
             VIRTIO_BLOCK => {
                 if let Some(path) = base_info.pci_addr {
                     device.id = device_id;
                     device.field_type = KATA_BLK_DEV_TYPE.to_string();
-                    device.vm_path = path.clone();
+                    device.vm_path = path;
                 }
             }
             _ => (),

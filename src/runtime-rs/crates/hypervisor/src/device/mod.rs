@@ -46,6 +46,7 @@ pub struct DeviceArgument {
     pub index: Option<u64>,
     pub drive_name: Option<String>,
 }
+
 #[async_trait]
 pub trait Device: Send + Sync {
     async fn attach(&mut self, h: &dyn hypervisor, da: DeviceArgument) -> Result<()>;

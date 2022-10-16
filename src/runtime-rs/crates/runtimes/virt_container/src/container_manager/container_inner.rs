@@ -13,7 +13,7 @@ use common::{
     types::{ContainerID, ContainerProcess, ProcessExitStatus, ProcessStatus, ProcessType},
 };
 use nix::sys::signal::Signal;
-use resource::{rootfs::Rootfs, volume::Volume};
+use resource::{rootfs::Rootfs, volume::Volume, ResourceManager};
 use tokio::sync::RwLock;
 
 use crate::container_manager::logger_with_process;
@@ -159,7 +159,36 @@ impl ContainerInner {
         }
     }
 
-    async fn cleanup_container(&mut self, cid: &str, force: bool) -> Result<()> {
+    async fn remove_device(
+        &mut self,
+        _force: bool,
+        resource_manager: Arc<ResourceManager>,
+    ) -> Result<()> {
+        if let Some(rootfs) = &self.rootfs {
+            if let Some(device_id) = rootfs.get_device_id().await? {
+                resource_manager.remove_devices(device_id).await?;
+            }
+        }
+
+        for v in &self.volumes {
+            if let Some(device_id) = v.get_device_id()? {
+                resource_manager.remove_devices(device_id).await?;
+            }
+        }
+
+        for d in &self.devices {
+            resource_manager.remove_devices(d.id.clone()).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn cleanup_container(
+        &mut self,
+        cid: &str,
+        force: bool,
+        resource_manager: Arc<ResourceManager>,
+    ) -> Result<()> {
         // wait until the container process
         // terminated and the status write lock released.
         info!(self.logger, "wait on container terminated");
@@ -181,7 +210,7 @@ impl ContainerInner {
                     Err(e)
                 }
             })?;
-
+        self.remove_device(force, resource_manager).await?;
         // close the exit channel to wakeup wait service
         // send to notify watchers who are waiting for the process exit
         self.init_process.stop().await;
@@ -192,6 +221,7 @@ impl ContainerInner {
         &mut self,
         process: &ContainerProcess,
         force: bool,
+        resource_manager: Arc<ResourceManager>,
     ) -> Result<()> {
         let logger = logger_with_process(process);
         info!(logger, "begin to stop process");
@@ -219,7 +249,7 @@ impl ContainerInner {
 
         match process.process_type {
             ProcessType::Container => self
-                .cleanup_container(&process.container_id.container_id, force)
+                .cleanup_container(&process.container_id.container_id, force, resource_manager)
                 .await
                 .context("stop container")?,
             ProcessType::Exec => {

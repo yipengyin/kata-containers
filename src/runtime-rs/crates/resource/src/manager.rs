@@ -113,6 +113,11 @@ impl ResourceManager {
         let inner = self.inner.read().await;
         inner.delete_cgroups().await
     }
+
+    pub async fn remove_devices(&self, device_id: String) -> Result<()> {
+        let mut inner = self.inner.write().await;
+        inner.remove_devices(device_id).await
+    }
 }
 
 #[async_trait]
