@@ -16,14 +16,15 @@ use crate::{
 };
 use agent::types::Device;
 use agent::{Agent, Storage};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use hypervisor::device_manager::{new_device_info, VIRTIO_MMIO};
-use hypervisor::{device_manager::DeviceManager, Hypervisor};
+use hypervisor::{device_manager::DeviceManager, GenericConfig, Hypervisor, KernelParams};
 use kata_types::config::TomlConfig;
 use kata_types::mount::Mount;
 use oci::{Linux, LinuxResources};
 use persist::sandbox_persist::Persist;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -73,10 +74,71 @@ impl ResourceManagerInner {
         self.toml_config.clone()
     }
 
+    async fn set_vm_rootfs(&self) -> Result<KernelParams> {
+        let hypervisor_name = &self.toml_config.runtime.hypervisor_name;
+        let hypervisor_config = self
+            .toml_config
+            .hypervisor
+            .get(hypervisor_name)
+            .context("failed to get hypervisor config")?
+            .clone();
+        let image = {
+            let initrd_path = hypervisor_config.boot_info.initrd.clone();
+            let image_path = hypervisor_config.boot_info.image.clone();
+            if !initrd_path.is_empty() {
+                Ok(initrd_path)
+            } else if !image_path.is_empty() {
+                Ok(image_path)
+            } else {
+                Err(anyhow!("failed to get image"))
+            }
+        }
+        .context("get image")?;
+
+        let device_id = self
+            .device_manager
+            .write()
+            .await
+            .try_add_device(
+                &mut GenericConfig {
+                    host_path: image,
+                    container_path: "".to_string(),
+                    dev_type: "b".to_string(),
+                    major: 0,
+                    minor: 0,
+                    file_mode: 0,
+                    uid: 0,
+                    gid: 0,
+                    id: "".to_string(),
+                    bdf: None,
+                    driver_options: HashMap::new(),
+                    io_limits: None,
+                    is_readonly: true,
+                    ..Default::default()
+                },
+                self.hypervisor.as_ref(),
+            )
+            .await?;
+
+        let virt_path = self
+            .device_manager
+            .read()
+            .await
+            .get_device_guest_path(device_id.as_str())
+            .await
+            .ok_or(anyhow!("device doesn't exists"))?;
+
+        Ok(KernelParams::new_rootfs_kernel_params(
+            &hypervisor_config.blockdev_info.block_device_driver,
+            &virt_path,
+        ))
+    }
+
     pub async fn prepare_before_start_vm(
         &mut self,
         device_configs: Vec<ResourceConfig>,
-    ) -> Result<()> {
+    ) -> Result<KernelParams> {
+        let rootfs_params = self.set_vm_rootfs().await?;
         for dc in device_configs {
             match dc {
                 ResourceConfig::ShareFs(c) => {
@@ -106,7 +168,7 @@ impl ResourceManagerInner {
             };
         }
 
-        Ok(())
+        Ok(rootfs_params)
     }
 
     async fn handle_interfaces(&self, network: &dyn Network) -> Result<()> {

@@ -20,7 +20,7 @@ use kata_types::capabilities::Capabilities;
 use kata_types::config::hypervisor::Hypervisor as HypervisorConfig;
 use tokio::sync::RwLock;
 
-use crate::{device::DeviceConfig, Hypervisor, VcpuThreadIds};
+use crate::{device::DeviceConfig, Hypervisor, KernelParams, VcpuThreadIds};
 
 unsafe impl Send for Dragonball {}
 unsafe impl Sync for Dragonball {}
@@ -54,9 +54,9 @@ impl Hypervisor for Dragonball {
         inner.prepare_vm(id, netns).await
     }
 
-    async fn start_vm(&self, timeout: i32) -> Result<()> {
+    async fn start_vm(&self, rootfs_params: KernelParams, timeout: i32) -> Result<()> {
         let mut inner = self.inner.write().await;
-        inner.start_vm(timeout).await
+        inner.start_vm(rootfs_params, timeout).await
     }
 
     async fn stop_vm(&self) -> Result<()> {

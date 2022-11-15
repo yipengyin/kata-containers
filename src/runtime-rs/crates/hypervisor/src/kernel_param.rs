@@ -43,8 +43,8 @@ impl Param {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub(crate) struct KernelParams {
+#[derive(Debug, PartialEq, Clone)]
+pub struct KernelParams {
     params: Vec<Param>,
 }
 
@@ -67,13 +67,13 @@ impl KernelParams {
         Self { params }
     }
 
-    pub(crate) fn new_rootfs_kernel_params(rootfs_driver: &str) -> Self {
+    pub fn new_rootfs_kernel_params(rootfs_driver: &str, device_path: &str) -> Self {
         let params = match rootfs_driver {
             VM_ROOTFS_DRIVER_BLK | VM_ROOTFS_DRIVER_MMIO => {
                 vec![
                     Param {
                         key: "root".to_string(),
-                        value: "/dev/vda1".to_string(),
+                        value: device_path.to_string() + "1",
                     },
                     Param {
                         key: "rootflags".to_string(),
@@ -89,7 +89,7 @@ impl KernelParams {
                 vec![
                     Param {
                         key: "root".to_string(),
-                        value: "/dev/pmem0p1".to_string(),
+                        value: device_path.to_string() + "p1",
                     },
                     Param {
                         key: "rootflags".to_string(),

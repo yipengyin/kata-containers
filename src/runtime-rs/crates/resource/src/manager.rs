@@ -10,7 +10,7 @@ use agent::types::Device;
 use agent::{Agent, Storage};
 use anyhow::Result;
 use async_trait::async_trait;
-use hypervisor::Hypervisor;
+use hypervisor::{Hypervisor, KernelParams};
 use kata_types::config::TomlConfig;
 use kata_types::mount::Mount;
 use oci::{Linux, LinuxResources};
@@ -51,7 +51,10 @@ impl ResourceManager {
         inner.config()
     }
 
-    pub async fn prepare_before_start_vm(&self, device_configs: Vec<ResourceConfig>) -> Result<()> {
+    pub async fn prepare_before_start_vm(
+        &self,
+        device_configs: Vec<ResourceConfig>,
+    ) -> Result<KernelParams> {
         let mut inner = self.inner.write().await;
         inner.prepare_before_start_vm(device_configs).await
     }

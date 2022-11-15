@@ -40,6 +40,7 @@ impl BlockDevice {
             drive: BlockConfig {
                 id: dev_info.id.clone(),
                 path_on_host: dev_info.host_path.clone(),
+                is_readonly: dev_info.is_readonly,
                 ..Default::default()
             },
             base: GenericDevice::new(dev_info),

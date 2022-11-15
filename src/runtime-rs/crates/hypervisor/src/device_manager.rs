@@ -39,7 +39,7 @@ impl DeviceManager {
         Ok(Self {
             block_driver: String::from(driver),
             devices: HashMap::new(),
-            block_index: 1,
+            block_index: 0,
             released_index: vec![],
         })
     }

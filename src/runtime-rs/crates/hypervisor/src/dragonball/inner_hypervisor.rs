@@ -13,7 +13,7 @@ use anyhow::{Context, Ok, Result};
 use kata_types::capabilities::Capabilities;
 
 use super::inner::DragonballInner;
-use crate::{utils, VcpuThreadIds, VmmState};
+use crate::{utils, KernelParams, VcpuThreadIds, VmmState};
 use persist::KATA_PATH;
 const DEFAULT_HYBRID_VSOCK_NAME: &str = "kata.hvsock";
 
@@ -44,15 +44,21 @@ impl DragonballInner {
 
     // start_vm will start the hypervisor for the given sandbox.
     // In the context of dragonball, this will start the hypervisor
-    pub(crate) async fn start_vm(&mut self, timeout: i32) -> Result<()> {
+    pub(crate) async fn start_vm(
+        &mut self,
+        rootfs_params: KernelParams,
+        timeout: i32,
+    ) -> Result<()> {
         self.run_vmm_server().context("start vmm server")?;
-        self.cold_start_vm(timeout).await.map_err(|error| {
-            error!(sl!(), "start micro vm error {:?}", error);
-            if let Err(err) = self.stop_vm() {
-                error!(sl!(), "failed to call end err : {:?}", err);
-            }
-            error
-        })?;
+        self.cold_start_vm(rootfs_params, timeout)
+            .await
+            .map_err(|error| {
+                error!(sl!(), "start micro vm error {:?}", error);
+                if let Err(err) = self.stop_vm() {
+                    error!(sl!(), "failed to call end err : {:?}", err);
+                }
+                error
+            })?;
 
         Ok(())
     }

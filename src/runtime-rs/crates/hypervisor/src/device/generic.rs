@@ -54,6 +54,9 @@ pub struct GenericConfig {
 
     // virt_path at which the device appears inside the VM, outside of the container mount namespace
     pub virt_path: Option<String>,
+
+    /// whether the device is readonly
+    pub is_readonly: bool,
 }
 
 #[derive(Debug, Clone, Default)]

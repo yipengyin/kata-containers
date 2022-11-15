@@ -18,11 +18,13 @@ pub use kernel_param::Param;
 mod utils;
 use std::collections::HashMap;
 
+pub use crate::kernel_param::KernelParams;
 use anyhow::Result;
 use async_trait::async_trait;
 use hypervisor_persist::HypervisorState;
 use kata_types::capabilities::Capabilities;
 use kata_types::config::hypervisor::Hypervisor as HypervisorConfig;
+
 pub mod device_manager;
 // Config which driver to use as vm root dev
 const VM_ROOTFS_DRIVER_BLK: &str = "virtio-blk";
@@ -47,7 +49,7 @@ pub struct VcpuThreadIds {
 pub trait Hypervisor: Send + Sync {
     // vm manager
     async fn prepare_vm(&self, id: &str, netns: Option<String>) -> Result<()>;
-    async fn start_vm(&self, timeout: i32) -> Result<()>;
+    async fn start_vm(&self, rootfs_params: KernelParams, timeout: i32) -> Result<()>;
     async fn stop_vm(&self) -> Result<()>;
     async fn pause_vm(&self) -> Result<()>;
     async fn save_vm(&self) -> Result<()>;
