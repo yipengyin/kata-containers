@@ -16,6 +16,7 @@ use tokio::sync::Mutex;
 /// VirtioMmio indicates block driver is virtio-mmio based
 pub const VIRTIO_MMIO: &str = "virtio-mmio";
 pub const VIRTIO_BLOCK: &str = "virtio-blk";
+pub const VIRTIO_PMEM: &str = "virtio-pmem";
 pub const VFIO: &str = "vfio";
 const SYS_DEV_PREFIX: &str = "/sys/dev";
 pub const KATA_MMIO_BLK_DEV_TYPE: &str = "mmioblk";
@@ -27,6 +28,7 @@ pub struct DeviceManager {
     devices: HashMap<String, ArcBoxDevice>,
     block_index: u64,
     released_index: Vec<u64>,
+    nvdimm_index: u64,
 }
 
 impl DeviceManager {
@@ -41,6 +43,7 @@ impl DeviceManager {
             devices: HashMap::new(),
             block_index: 0,
             released_index: vec![],
+            nvdimm_index: 0,
         })
     }
 
@@ -57,8 +60,16 @@ impl DeviceManager {
         }
         self.devices.insert(id.clone(), dev.clone());
         // prepare arguments to attach device
-        let index = self.get_and_set_sandbox_block_index()?;
-        let drive_name = utils::get_virt_drive_name(index as i32)?;
+        let index = if dev_info.pmem {
+            self.get_and_set_nvdimm_index()
+        } else {
+            self.get_and_set_sandbox_block_index()?
+        };
+        let drive_name = if dev_info.pmem {
+            utils::get_pmem_drive_name(index as i32)
+        } else {
+            utils::get_virt_drive_name(index as i32)?
+        };
         info!(sl!(), "index: {}, drive_name: {}", index, drive_name);
         if let Err(e) = self
             .attach_device(
@@ -201,7 +212,7 @@ impl DeviceManager {
         host_path: &str,
         bdf: Option<&String>,
     ) -> Option<ArcBoxDevice> {
-        if major >= 0 && minor >= 0 {
+        if major != 0 || minor != 0 {
             return self.find_device_by_major_minor(major, minor).await;
         }
 
@@ -279,6 +290,12 @@ impl DeviceManager {
         self.released_index.push(index);
         self.released_index.sort_by(|a, b| b.cmp(a));
         Ok(())
+    }
+
+    fn get_and_set_nvdimm_index(&mut self) -> u64 {
+        let current_index = self.nvdimm_index;
+        self.nvdimm_index += 1;
+        current_index
     }
 }
 

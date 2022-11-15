@@ -56,7 +56,9 @@ pub struct GenericConfig {
     pub virt_path: Option<String>,
 
     /// whether the device is readonly
-    pub is_readonly: bool,
+    pub readonly: bool,
+
+    pub pmem: bool,
 }
 
 #[derive(Debug, Clone, Default)]

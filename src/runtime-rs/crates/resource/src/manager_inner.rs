@@ -113,7 +113,8 @@ impl ResourceManagerInner {
                     bdf: None,
                     driver_options: HashMap::new(),
                     io_limits: None,
-                    is_readonly: true,
+                    readonly: true,
+                    pmem: false,
                     ..Default::default()
                 },
                 self.hypervisor.as_ref(),

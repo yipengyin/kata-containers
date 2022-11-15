@@ -59,6 +59,10 @@ pub fn get_virt_drive_name(mut index: i32) -> Result<String> {
     Ok(String::from(PREFIX) + std::str::from_utf8(&disk_letters)?)
 }
 
+pub fn get_pmem_drive_name(index: i32) -> String {
+    format!("pmem{}", index)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

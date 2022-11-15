@@ -25,6 +25,8 @@ pub struct BlockConfig {
     /// Don't close `path_on_host` file when dropping the device.
     pub no_drop: bool,
 
+    pub pmem: bool,
+
     /// device index
     pub index: u64,
 }
@@ -40,7 +42,8 @@ impl BlockDevice {
             drive: BlockConfig {
                 id: dev_info.id.clone(),
                 path_on_host: dev_info.host_path.clone(),
-                is_readonly: dev_info.is_readonly,
+                is_readonly: dev_info.readonly,
+                pmem: dev_info.pmem,
                 ..Default::default()
             },
             base: GenericDevice::new(dev_info),
