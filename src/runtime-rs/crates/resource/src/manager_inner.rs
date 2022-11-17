@@ -18,7 +18,7 @@ use agent::types::Device;
 use agent::{Agent, Storage};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use hypervisor::device_manager::{new_device_info, VIRTIO_MMIO};
+use hypervisor::device_manager::{new_device_info, VIRTIO_BLOCK, VIRTIO_MMIO, VIRTIO_PMEM};
 use hypervisor::{device_manager::DeviceManager, GenericConfig, Hypervisor, KernelParams};
 use kata_types::config::TomlConfig;
 use kata_types::mount::Mount;
@@ -95,6 +95,13 @@ impl ResourceManagerInner {
         }
         .context("get image")?;
 
+        let vm_rootfs_driver = hypervisor_config.boot_info.vm_rootfs_driver;
+        let pmem = match vm_rootfs_driver.as_str() {
+            VIRTIO_MMIO | VIRTIO_BLOCK => false,
+            VIRTIO_PMEM => true,
+            _ => return Err(anyhow!("Unsupported vm rootfs driver {}", vm_rootfs_driver)),
+        };
+
         let device_id = self
             .device_manager
             .write()
@@ -114,7 +121,7 @@ impl ResourceManagerInner {
                     driver_options: HashMap::new(),
                     io_limits: None,
                     readonly: true,
-                    pmem: false,
+                    pmem,
                     ..Default::default()
                 },
                 self.hypervisor.as_ref(),
@@ -130,7 +137,7 @@ impl ResourceManagerInner {
             .ok_or(anyhow!("device doesn't exists"))?;
 
         Ok(KernelParams::new_rootfs_kernel_params(
-            &hypervisor_config.blockdev_info.block_device_driver,
+            &vm_rootfs_driver,
             &virt_path,
         ))
     }

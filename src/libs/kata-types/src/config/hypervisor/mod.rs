@@ -215,6 +215,10 @@ pub struct BootInfo {
     /// If you want that qemu uses the default firmware leave this option empty.
     #[serde(default)]
     pub firmware: String,
+
+    /// VM rootfs driver
+    #[serde(default)]
+    pub vm_rootfs_driver: String,
 }
 
 impl BootInfo {
